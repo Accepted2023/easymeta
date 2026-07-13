@@ -1,6 +1,6 @@
 {
-  "name": "MetaLab - Meta分析软件",
-  "short_name": "MetaLab",
+  "name": "EasyMeta - Meta分析软件",
+  "short_name": "EasyMeta",
   "description": "功能全面的 Meta 分析工具，支持二分类/连续型/诊断试验等多种数据类型",
   "start_url": "./index.html",
   "display": "standalone",

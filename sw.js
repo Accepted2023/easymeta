@@ -1,5 +1,5 @@
-// MetaLab Service Worker - 离线缓存
-const CACHE_NAME = 'metalab-v1.0.0';
+// EasyMeta Service Worker - 离线缓存
+const CACHE_NAME = 'easymeta-v1.0.0';
 const ASSETS = [
   './',
   './index.html',

@@ -1,5 +1,5 @@
 /**
- * MetaLab - Main Application Logic
+ * EasyMeta - Main Application Logic
  * Connects data input, statistical engine, and visualization
  */
 

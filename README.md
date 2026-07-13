@@ -1,4 +1,4 @@
-# MetaLab - Meta 分析软件
+# EasyMeta - Meta 分析软件
 
 纯前端 Meta 分析工具，无需安装，浏览器直接打开即可使用。
 
