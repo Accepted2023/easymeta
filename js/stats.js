@@ -645,7 +645,7 @@ const Stats = (function () {
    * @param {string} model - 'fixed' or 'random'
    * @param {string} measure - effect measure
    */
-  function subgroupAnalysis(studies, subgroupKey, model, tau2Method) {
+  function subgroupAnalysis(studies, subgroupKey, model, tau2Method, ciLevel) {
     const groups = {};
     for (const s of studies) {
       const g = s[subgroupKey] || 'Unknown';
@@ -656,8 +656,8 @@ const Stats = (function () {
     const results = [];
     for (const [groupName, groupStudies] of Object.entries(groups)) {
       const result = model === 'random'
-        ? randomEffect(groupStudies, tau2Method)
-        : fixedEffect(groupStudies);
+        ? randomEffect(groupStudies, tau2Method, ciLevel)
+        : fixedEffect(groupStudies, ciLevel);
       if (result) {
         results.push({
           name: groupName,
@@ -901,7 +901,7 @@ const Stats = (function () {
    * @param {Array} studies
    * @param {string} side - 'right' or 'left'
    */
-  function trimAndFill(studies) {
+  function trimAndFill(studies, ciLevel) {
     const valid = studies.filter(s => isFinite(s.TE) && isFinite(s.seTE) && s.seTE > 0);
     if (valid.length < 3) return null;
 
@@ -1021,8 +1021,8 @@ const Stats = (function () {
     }
 
     // Compute adjusted estimate
-    const originalResult = fixedEffect(valid);
-    const adjustedResult = fixedEffect(adjustedStudies);
+    const originalResult = fixedEffect(valid, ciLevel);
+    const adjustedResult = fixedEffect(adjustedStudies, ciLevel);
 
     return {
       originalTE: originalResult.TE,
@@ -1043,13 +1043,13 @@ const Stats = (function () {
   /**
    * Leave-one-out sensitivity analysis
    */
-  function leaveOneOut(studies, model, tau2Method) {
+  function leaveOneOut(studies, model, tau2Method, ciLevel) {
     const results = [];
     for (let i = 0; i < studies.length; i++) {
       const remaining = studies.filter((_, idx) => idx !== i);
       const result = model === 'random'
-        ? randomEffect(remaining, tau2Method)
-        : fixedEffect(remaining);
+        ? randomEffect(remaining, tau2Method, ciLevel)
+        : fixedEffect(remaining, ciLevel);
       if (result) {
         results.push({
           excluded: studies[i],
@@ -1073,7 +1073,7 @@ const Stats = (function () {
    * @param {string} model
    * @param {string} sortKey - key to sort by (e.g., 'year')
    */
-  function cumulativeMeta(studies, model, tau2Method, sortKey) {
+  function cumulativeMeta(studies, model, tau2Method, sortKey, ciLevel) {
     const sorted = [...studies].sort((a, b) => {
       if (sortKey) {
         const va = parseFloat(a[sortKey]) || 0;
@@ -1087,8 +1087,8 @@ const Stats = (function () {
     for (let i = 1; i <= sorted.length; i++) {
       const subset = sorted.slice(0, i);
       const result = model === 'random'
-        ? randomEffect(subset, tau2Method)
-        : fixedEffect(subset);
+        ? randomEffect(subset, tau2Method, ciLevel)
+        : fixedEffect(subset, ciLevel);
       if (result) {
         results.push({
           k: i,
@@ -1113,7 +1113,7 @@ const Stats = (function () {
    * @param {Object} study - { TP, FP, FN, TN }
    * @returns {Object} - sensitivity, specificity, plr, nlr, dor, logDOR, seLogDOR, etc.
    */
-  function calcDiagnosticEffect(study) {
+  function calcDiagnosticEffect(study, ciLevel) {
     let TP = study.TP, FP = study.FP, FN = study.FN, TN = study.TN;
 
     // Continuity correction for zero cells
@@ -1161,8 +1161,8 @@ const Stats = (function () {
     const D = logitSe - logitFPR;          // = log DOR
     const S = logitSe + logitFPR;          // = logitSe - logitSp
 
-    // 95% CIs
-    const zCrit = 1.96;
+    // CIs with user-specified confidence level
+    const zCrit = inverseNormalCDF(1 - (1 - (ciLevel || 0.95)) / 2);
     const dorCI = [Math.exp(logDOR - zCrit * seLogDOR), Math.exp(logDOR + zCrit * seLogDOR)];
     const seCI = [sensitivity - zCrit * seSens, sensitivity + zCrit * seSens];
     const spCI = [specificity - zCrit * seSpec, specificity + zCrit * seSpec];
@@ -1192,7 +1192,7 @@ const Stats = (function () {
    * @param {string} tau2Method
    * @returns {Object} pooled result with back-transformed estimate
    */
-  function poolDiagnosticMeasure(studies, teKey, seKey, model, tau2Method) {
+  function poolDiagnosticMeasure(studies, teKey, seKey, model, tau2Method, ciLevel) {
     const transformed = studies.map(s => ({
       TE: s[teKey],
       seTE: s[seKey],
@@ -1202,8 +1202,8 @@ const Stats = (function () {
     if (transformed.length === 0) return null;
 
     const result = model === 'random'
-      ? randomEffect(transformed, tau2Method)
-      : fixedEffect(transformed);
+      ? randomEffect(transformed, tau2Method, ciLevel)
+      : fixedEffect(transformed, ciLevel);
 
     if (!result) return null;
 
@@ -1313,7 +1313,7 @@ const Stats = (function () {
    * @param {string} tau2Method
    * @returns {Object} comprehensive diagnostic results
    */
-  function diagnosticMeta(studies, model, tau2Method) {
+  function diagnosticMeta(studies, model, tau2Method, ciLevel) {
     const valid = studies.filter(s =>
       isFinite(s.logDOR) && isFinite(s.seLogDOR) && s.seLogDOR > 0
     );
@@ -1321,29 +1321,29 @@ const Stats = (function () {
     if (valid.length === 0) return null;
 
     // Pool log DOR
-    const dorResult = poolDiagnosticMeasure(valid, 'logDOR', 'seLogDOR', model, tau2Method);
+    const dorResult = poolDiagnosticMeasure(valid, 'logDOR', 'seLogDOR', model, tau2Method, ciLevel);
 
     // Pool logit(Sensitivity)
-    const seResult = poolDiagnosticMeasure(valid, 'logitSe', 'seLogitSe', model, tau2Method);
+    const seResult = poolDiagnosticMeasure(valid, 'logitSe', 'seLogitSe', model, tau2Method, ciLevel);
 
     // Pool logit(Specificity)
-    const spResult = poolDiagnosticMeasure(valid, 'logitSp', 'seLogitSp', model, tau2Method);
+    const spResult = poolDiagnosticMeasure(valid, 'logitSp', 'seLogitSp', model, tau2Method, ciLevel);
 
     // Pool log(PLR)
     const plrStudies = valid.map(s => ({
       TE: Math.log(s.plr), seTE: s.seLogPLR, label: s.label || s.name || 'Study'
     })).filter(s => isFinite(s.TE) && isFinite(s.seTE) && s.seTE > 0);
     const plrResult = model === 'random'
-      ? randomEffect(plrStudies, tau2Method)
-      : fixedEffect(plrStudies);
+      ? randomEffect(plrStudies, tau2Method, ciLevel)
+      : fixedEffect(plrStudies, ciLevel);
 
     // Pool log(NLR)
     const nlrStudies = valid.map(s => ({
       TE: Math.log(s.nlr), seTE: s.seLogNLR, label: s.label || s.name || 'Study'
     })).filter(s => isFinite(s.TE) && isFinite(s.seTE) && s.seTE > 0);
     const nlrResult = model === 'random'
-      ? randomEffect(nlrStudies, tau2Method)
-      : fixedEffect(nlrStudies);
+      ? randomEffect(nlrStudies, tau2Method, ciLevel)
+      : fixedEffect(nlrStudies, ciLevel);
 
     // SROC analysis
     const sroc = srocAnalysis(valid);
