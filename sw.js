@@ -1,5 +1,5 @@
-// EasyMeta Service Worker - 离线缓存
-const CACHE_NAME = 'easymeta-v1.2.0';
+// EasyMeta Service Worker - 离线缓存 (stale-while-revalidate)
+const CACHE_NAME = 'easymeta-v1.3.0';
 const ASSETS = [
   './',
   './index.html',
@@ -12,6 +12,9 @@ const ASSETS = [
   './icon-192.png',
   './icon-512.png'
 ];
+
+// Files that should always revalidate (JS/CSS may contain bug fixes)
+const REVALIDATE_EXTS = ['.js', '.css', '.html'];
 
 self.addEventListener('install', function(event) {
   event.waitUntil(
@@ -41,22 +44,46 @@ self.addEventListener('activate', function(event) {
 
 self.addEventListener('fetch', function(event) {
   if (event.request.method !== 'GET') return;
-  event.respondWith(
-    caches.match(event.request).then(function(cached) {
-      if (cached) {
-        return cached;
-      }
-      return fetch(event.request).then(function(response) {
-        if (response.ok && response.type === 'basic') {
-          var clone = response.clone();
-          caches.open(CACHE_NAME).then(function(cache) {
-            cache.put(event.request, clone).catch(function() {});
+
+  var url = new URL(event.request.url);
+  var shouldRevalidate = REVALIDATE_EXTS.some(function(ext) {
+    return url.pathname.endsWith(ext);
+  });
+
+  if (shouldRevalidate) {
+    // Stale-while-revalidate: serve from cache, fetch update in background
+    event.respondWith(
+      caches.open(CACHE_NAME).then(function(cache) {
+        return cache.match(event.request).then(function(cached) {
+          var fetchPromise = fetch(event.request).then(function(response) {
+            if (response.ok) {
+              cache.put(event.request, response.clone()).catch(function() {});
+            }
+            return response;
+          }).catch(function() {
+            return cached || caches.match('./index.html');
           });
-        }
-        return response;
-      }).catch(function() {
-        return caches.match('./index.html');
-      });
-    })
-  );
+          return cached || fetchPromise;
+        });
+      })
+    );
+  } else {
+    // Cache-first for other assets (images, manifest, etc.)
+    event.respondWith(
+      caches.match(event.request).then(function(cached) {
+        if (cached) return cached;
+        return fetch(event.request).then(function(response) {
+          if (response.ok && response.type === 'basic') {
+            var clone = response.clone();
+            caches.open(CACHE_NAME).then(function(cache) {
+              cache.put(event.request, clone).catch(function() {});
+            });
+          }
+          return response;
+        }).catch(function() {
+          return caches.match('./index.html');
+        });
+      })
+    );
+  }
 });
