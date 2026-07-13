@@ -1,13 +1,16 @@
 // EasyMeta Service Worker - 离线缓存
-const CACHE_NAME = 'easymeta-v1.0.0';
+const CACHE_NAME = 'easymeta-v1.1.0';
 const ASSETS = [
   './',
   './index.html',
   './css/style.css',
   './js/stats.js',
   './js/plots.js',
+  './js/storage.js',
   './js/app.js',
-  './manifest.json'
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', function(event) {
