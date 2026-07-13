@@ -57,22 +57,20 @@ const App = (function () {
       ]
     },
     generic_effect: {
-      name: '直接效应量示例 (Generic)',
-      desc: '已计算的效应量及其标准误，适用于各种已有汇总数据',
-      meta: '10 studies | Generic | TE+SE',
+      name: '直接效应量示例 (Generic, 高异质性)',
+      desc: '已计算的效应量及其标准误，研究间存在显著异质性(I²>90%)，适合对比固定/随机效应模型差异',
+      meta: '8 studies | Generic | TE+SE | I²≈95%',
       dataType: 'generic',
       measure: 'MD',
       studies: [
-        { label: 'Trial A', TE: 0.45, seTE: 0.12, year: 2005, subgroup: 'Group 1' },
-        { label: 'Trial B', TE: 0.32, seTE: 0.15, year: 2007, subgroup: 'Group 1' },
-        { label: 'Trial C', TE: 0.51, seTE: 0.10, year: 2008, subgroup: 'Group 1' },
-        { label: 'Trial D', TE: 0.28, seTE: 0.18, year: 2009, subgroup: 'Group 1' },
-        { label: 'Trial E', TE: 0.55, seTE: 0.14, year: 2010, subgroup: 'Group 2' },
-        { label: 'Trial F', TE: 0.18, seTE: 0.20, year: 2011, subgroup: 'Group 2' },
-        { label: 'Trial G', TE: 0.62, seTE: 0.13, year: 2012, subgroup: 'Group 2' },
-        { label: 'Trial H', TE: 0.40, seTE: 0.16, year: 2013, subgroup: 'Group 2' },
-        { label: 'Trial I', TE: 0.35, seTE: 0.11, year: 2014, subgroup: 'Group 3' },
-        { label: 'Trial J', TE: 0.48, seTE: 0.17, year: 2015, subgroup: 'Group 3' }
+        { label: 'Trial A', TE: 0.80, seTE: 0.15, year: 2005, subgroup: 'Group 1' },
+        { label: 'Trial B', TE: -0.30, seTE: 0.12, year: 2007, subgroup: 'Group 1' },
+        { label: 'Trial C', TE: 0.95, seTE: 0.18, year: 2008, subgroup: 'Group 1' },
+        { label: 'Trial D', TE: -0.50, seTE: 0.14, year: 2009, subgroup: 'Group 1' },
+        { label: 'Trial E', TE: 0.60, seTE: 0.16, year: 2010, subgroup: 'Group 2' },
+        { label: 'Trial F', TE: -0.10, seTE: 0.20, year: 2011, subgroup: 'Group 2' },
+        { label: 'Trial G', TE: 1.20, seTE: 0.22, year: 2012, subgroup: 'Group 2' },
+        { label: 'Trial H', TE: -0.70, seTE: 0.13, year: 2013, subgroup: 'Group 2' }
       ]
     },
     correlation: {
@@ -743,6 +741,11 @@ const App = (function () {
     </div>`;
     html += '</div>';
 
+    // tau2 ≈ 0 notice
+    if (state.model === 'random' && (result.tau2 || 0) < 0.0001) {
+      html += '<div class="alert alert-info">⚠ 当前数据无异质性 (τ² ≈ 0)，随机效应模型与固定效应模型结果完全相同。可使用"直接效应量示例(高异质性)"数据体验模型差异。</div>';
+    }
+
     // Model details
     html += '<div class="card"><div class="card-header"><h3>模型详情</h3></div>';
     html += '<div class="inline-stats">';
@@ -779,7 +782,7 @@ const App = (function () {
     Plots.forestPlot(
       document.getElementById('forest-plot-container'),
       studies, result,
-      { measure: state.measure, studyNames }
+      { measure: state.measure, studyNames, ciLevel: state.ciLevel }
     );
 
     // Toggle model button
@@ -913,7 +916,8 @@ const App = (function () {
         groupDiv.appendChild(plotDiv);
         Plots.forestPlot(plotDiv, groupStudies, g, {
           measure: state.measure,
-          studyNames: groupStudies.map(s => s.label || s.name || 'Study')
+          studyNames: groupStudies.map(s => s.label || s.name || 'Study'),
+          ciLevel: state.ciLevel
         });
       }
     }
@@ -1682,7 +1686,7 @@ const App = (function () {
     Plots.forestPlot(
       document.getElementById('diag-forest-container'),
       dorStudies, diag.dorResult,
-      { measure: 'DOR', studyNames: dorStudies.map(s => s.label) }
+      { measure: 'DOR', studyNames: dorStudies.map(s => s.label), ciLevel: state.ciLevel }
     );
 
     // Toggle model button
@@ -1872,7 +1876,7 @@ const App = (function () {
     Plots.forestPlot(
       document.getElementById('report-forest-container'),
       studies, result,
-      { measure: state.measure, studyNames: studies.map(s => s.label || s.name || 'Study') }
+      { measure: state.measure, studyNames: studies.map(s => s.label || s.name || 'Study'), ciLevel: state.ciLevel }
     );
 
     Plots.funnelPlot(
