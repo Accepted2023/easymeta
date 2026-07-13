@@ -213,14 +213,15 @@ const App = (function () {
       state.measure = config.measures[0];
     }
 
-    typeSelect.addEventListener('change', updateMeasureOptions);
-    measureSelect.addEventListener('change', e => state.measure = e.target.value);
+    typeSelect.addEventListener('change', () => { updateMeasureOptions(); navigateTo(state.currentPage); });
+    measureSelect.addEventListener('change', e => { state.measure = e.target.value; navigateTo(state.currentPage); });
     document.getElementById('model-select').addEventListener('change', e => {
       state.model = e.target.value;
       document.getElementById('tau2-method-group').style.display = e.target.value === 'random' ? '' : 'none';
+      navigateTo(state.currentPage);
     });
-    document.getElementById('tau2-select').addEventListener('change', e => state.tau2Method = e.target.value);
-    document.getElementById('ci-level').addEventListener('change', e => state.ciLevel = parseFloat(e.target.value));
+    document.getElementById('tau2-select').addEventListener('change', e => { state.tau2Method = e.target.value; navigateTo(state.currentPage); });
+    document.getElementById('ci-level').addEventListener('change', e => { state.ciLevel = parseFloat(e.target.value); navigateTo(state.currentPage); });
 
     updateMeasureOptions();
 
@@ -561,7 +562,7 @@ const App = (function () {
           result = Stats.calcHREffect(s);
           break;
         case 'diagnostic':
-          result = Stats.calcDiagnosticEffect(s);
+          result = Stats.calcDiagnosticEffect(s, state.ciLevel);
           break;
         default:
           result = { TE: s.TE, seTE: s.seTE };
@@ -785,6 +786,7 @@ const App = (function () {
     document.getElementById('toggle-model-btn').addEventListener('click', () => {
       state.model = state.model === 'random' ? 'fixed' : 'random';
       document.getElementById('model-select').value = state.model;
+      document.getElementById('tau2-method-group').style.display = state.model === 'random' ? '' : 'none';
       renderMainAnalysis();
     });
   }
@@ -841,7 +843,7 @@ const App = (function () {
       s.subgroup = state.studies[i][subKey] || 'Unknown';
     });
 
-    const result = Stats.subgroupAnalysis(studies, subKey, state.model, state.tau2Method);
+    const result = Stats.subgroupAnalysis(studies, subKey, state.model, state.tau2Method, state.ciLevel);
 
     if (!result || result.groups.length < 2) {
       container.innerHTML += '<div class="alert alert-warning">亚组分析需要至少2个亚组。</div>';
@@ -1217,7 +1219,7 @@ const App = (function () {
     }
 
     // Trim and Fill
-    const tf = Stats.trimAndFill(studies);
+    const tf = Stats.trimAndFill(studies, state.ciLevel);
     if (tf) {
       const expScale = ['OR', 'RR', 'HR', 'DOR'].includes(state.measure);
       const transform = (x) => expScale ? Math.exp(x) : x;
@@ -1293,7 +1295,7 @@ const App = (function () {
     let html = '';
 
     // Leave-one-out
-    const loo = Stats.leaveOneOut(studies, state.model, state.tau2Method);
+    const loo = Stats.leaveOneOut(studies, state.model, state.tau2Method, state.ciLevel);
     if (loo && loo.length > 0) {
       html += '<div class="card"><div class="card-header"><h3>留一法敏感性分析 (Leave-One-Out)</h3></div>';
       html += '<div class="alert alert-info">每次排除一个研究后重新计算合并效应量，评估单个研究对总体结果的影响。</div>';
@@ -1326,7 +1328,7 @@ const App = (function () {
     }
 
     // Cumulative meta-analysis
-    const cum = Stats.cumulativeMeta(studies, state.model, state.tau2Method, 'year');
+    const cum = Stats.cumulativeMeta(studies, state.model, state.tau2Method, 'year', state.ciLevel);
     if (cum && cum.length > 0) {
       html += '<div class="card"><div class="card-header"><h3>累积 Meta 分析</h3></div>';
       html += '<div class="alert alert-info">按年份逐年累积合并，观察效应量的演变趋势。</div>';
@@ -1369,7 +1371,7 @@ const App = (function () {
     }
 
     // Run full diagnostic meta-analysis
-    const diag = Stats.diagnosticMeta(studies, state.model, state.tau2Method);
+    const diag = Stats.diagnosticMeta(studies, state.model, state.tau2Method, state.ciLevel);
 
     if (!diag) {
       container.innerHTML = '<div class="alert alert-danger">诊断试验分析失败。</div>';
@@ -1719,7 +1721,7 @@ const App = (function () {
 
     const egger = Stats.eggerTest(studies);
     const begg = Stats.beggTest(studies);
-    const tf = Stats.trimAndFill(studies);
+    const tf = Stats.trimAndFill(studies, state.ciLevel);
 
     const expScale = ['OR', 'RR', 'HR', 'DOR'].includes(state.measure);
     const transform = (x) => expScale ? Math.exp(x) : x;
@@ -1832,7 +1834,7 @@ const App = (function () {
 
     // 7. Diagnostic test section (if diagnostic data)
     if (state.dataType === 'diagnostic') {
-      const diagReport = Stats.diagnosticMeta(studies, state.model, state.tau2Method);
+      const diagReport = Stats.diagnosticMeta(studies, state.model, state.tau2Method, state.ciLevel);
       if (diagReport) {
         html += '<div class="card-header" style="margin-top: 20px;"><h3>7. 诊断试验 Meta 分析</h3></div>';
         html += '<div class="result-grid">';
@@ -1883,7 +1885,7 @@ const App = (function () {
     if (state.dataType === 'diagnostic') {
       const srocContainer = document.getElementById('report-sroc-container');
       if (srocContainer) {
-        const diagReport = Stats.diagnosticMeta(studies, state.model, state.tau2Method);
+        const diagReport = Stats.diagnosticMeta(studies, state.model, state.tau2Method, state.ciLevel);
         if (diagReport) {
           Plots.srocPlot(srocContainer, studies, diagReport, { showCI: true });
         }
