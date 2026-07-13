@@ -369,9 +369,8 @@ const Stats = (function () {
     const cc = 0.5;
     const p2 = (study.events + cc) / (study.total + 2 * cc);
     const TE = Math.log(p2 / (1 - p2)); // logit
-    const seTE = 1 / Math.sqrt(study.events + 0.5) + 0; // approximate
-    const seTE2 = Math.sqrt(1 / (study.events + 0.5) + 1 / (study.total - study.events + 0.5));
-    return { TE, seTE: seTE2, measure: 'PROP', proportion: p };
+    const seTE = Math.sqrt(1 / (study.events + 0.5) + 1 / (study.total - study.events + 0.5));
+    return { TE, seTE, measure: 'PROP', proportion: p };
   }
 
   /**
@@ -398,9 +397,12 @@ const Stats = (function () {
    * @param {Array} studies - [{ TE, seTE }, ...]
    * @returns {Object} { TE, seTE, lower, upper, z, p, weight, I2, Q, tau2, ... }
    */
-  function fixedEffect(studies) {
+  function fixedEffect(studies, ciLevel) {
     const validStudies = studies.filter(s => isFinite(s.TE) && isFinite(s.seTE) && s.seTE > 0);
     if (validStudies.length === 0) return null;
+
+    ciLevel = ciLevel || 0.95;
+    const zCrit = inverseNormalCDF(1 - (1 - ciLevel) / 2);
 
     let sumW = 0, sumWT = 0;
     const weights = [];
@@ -416,8 +418,8 @@ const Stats = (function () {
     const seTE = Math.sqrt(1 / sumW);
     const z = TE / seTE;
     const p = 2 * (1 - normalCDF(Math.abs(z)));
-    const lower = TE - 1.96 * seTE;
-    const upper = TE + 1.96 * seTE;
+    const lower = TE - zCrit * seTE;
+    const upper = TE + zCrit * seTE;
 
     // Weights as percentages
     const weightsPct = weights.map(w => (w / sumW) * 100);
@@ -440,14 +442,17 @@ const Stats = (function () {
    * @param {string} tau2Method - 'DL', 'HE', 'SJ', 'REML'
    * @returns {Object}
    */
-  function randomEffect(studies, tau2Method = 'DL') {
+  function randomEffect(studies, tau2Method, ciLevel) {
     const validStudies = studies.filter(s => isFinite(s.TE) && isFinite(s.seTE) && s.seTE > 0);
     if (validStudies.length === 0) return null;
+
+    ciLevel = ciLevel || 0.95;
+    const zCrit = inverseNormalCDF(1 - (1 - ciLevel) / 2);
 
     const k = validStudies.length;
     if (k === 1) {
       // Only one study, same as fixed
-      return fixedEffect(validStudies);
+      return fixedEffect(validStudies, ciLevel);
     }
 
     // First, compute fixed-effect estimate for Q calculation
@@ -476,8 +481,8 @@ const Stats = (function () {
     const seTE = Math.sqrt(1 / sumWr);
     const z = TE / seTE;
     const p = 2 * (1 - normalCDF(Math.abs(z)));
-    const lower = TE - 1.96 * seTE;
-    const upper = TE + 1.96 * seTE;
+    const lower = TE - zCrit * seTE;
+    const upper = TE + zCrit * seTE;
 
     const weightsPct = weights.map(w => (w / sumWr) * 100);
 
@@ -521,7 +526,6 @@ const Stats = (function () {
 
     switch (method) {
       case 'DL': // DerSimonian-Laird
-        const C = sumW - sumW * sumW / (sumW); // This simplifies
         let sumW2 = 0;
         for (const s of studies) {
           const w = 1 / (s.seTE * s.seTE);
@@ -664,17 +668,14 @@ const Stats = (function () {
     }
 
     // Test for subgroup differences (between-group Q)
-    let Q_between = 0;
-    let totalTE = 0;
-    let totalW = 0;
+    let totalTE = 0, totalW = 0;
     for (const r of results) {
       const w = 1 / (r.seTE * r.seTE);
-      Q_between += w * r.TE * r.TE;
       totalTE += w * r.TE;
       totalW += w;
     }
     const TE_overall = totalTE / totalW;
-    Q_between = 0;
+    let Q_between = 0;
     for (const r of results) {
       const w = 1 / (r.seTE * r.seTE);
       Q_between += w * (r.TE - TE_overall) * (r.TE - TE_overall);
@@ -1278,6 +1279,9 @@ const Stats = (function () {
       const yAvg = (srocCurve[i].tpr + srocCurve[i - 1].tpr) / 2;
       auc += dx * yAvg;
     }
+    // When b > 1, the curve goes from upper-left to lower-right, giving AUC < 0.5
+    // Reflect to get the proper AUC (> 0.5 for a useful test)
+    auc = Math.max(auc, 1 - auc);
 
     // Q* index: the point where Se = Sp (i.e., TPR = 1 - FPR)
     // At Q*: logit(TPR) = -logit(FPR), which gives logit(FPR) = -a/2, logit(TPR) = a/2
