@@ -16,7 +16,9 @@ const App = (function () {
     ciLevel: 0.95,
     subgroupVar: null,
     metaRegVar: null,
-    currentPage: 'data-input'
+    currentPage: 'data-input',
+    projectName: '',
+    autoSaveStatus: 'idle' // idle, saving, saved
   };
 
   // Example datasets
@@ -143,6 +145,7 @@ const App = (function () {
       case 'pub-bias': renderPubBias(); break;
       case 'sensitivity': renderSensitivity(); break;
       case 'diagnostic': renderDiagnostic(); break;
+      case 'project-manager': renderProjectManager(); break;
       case 'report': renderReport(); break;
     }
   }
@@ -268,15 +271,23 @@ const App = (function () {
     const ex = examples[key];
     if (!ex) return;
 
+    Storage.disableAutoSave();
     state.dataType = ex.dataType;
     state.measure = ex.measure;
     state.studies = ex.studies.map(s => ({ ...s }));
+    state.projectName = ex.name;
+    Storage.setAutoSaveProject(null);
+    Storage.enableAutoSave();
+    autoSaveInitialized = true;
 
     // Update UI
     document.getElementById('data-type-select').value = ex.dataType;
     document.getElementById('data-type-select').dispatchEvent(new Event('change'));
     document.getElementById('measure-select').value = ex.measure;
+    const nameInput = document.getElementById('project-name-input');
+    if (nameInput) nameInput.value = ex.name;
 
+    triggerAutoSave();
     alert('已加载示例数据：' + ex.name + ' (' + ex.studies.length + ' 个研究)\n\n请点击左侧导航查看分析结果。');
   }
 
@@ -1931,12 +1942,317 @@ const App = (function () {
   }
 
   // ============================================================
+  // Project Management Init
+  // ============================================================
+
+  function initProjectManagement() {
+    // Listen for auto-save events
+    window.addEventListener('easymeta-autosaved', onAutoSaved);
+
+    // Project name input
+    const nameInput = document.getElementById('project-name-input');
+    if (nameInput) {
+      nameInput.addEventListener('input', (e) => {
+        state.projectName = e.target.value;
+        triggerAutoSave();
+      });
+    }
+
+    // Hook into state changes for auto-save
+    // We patch the existing event listeners by watching for changes
+    const origLoadExample = loadExample;
+    loadExample = function (key) {
+      origLoadExample(key);
+      const ex = examples[key];
+      if (ex) {
+        Storage.disableAutoSave();
+        state.projectName = ex.name;
+        Storage.setAutoSaveProject(null);
+        Storage.enableAutoSave();
+        autoSaveInitialized = true;
+        const nameInput = document.getElementById('project-name-input');
+        if (nameInput) nameInput.value = ex.name;
+        triggerAutoSave();
+      }
+    };
+
+    // Watch for data type / measure / model changes
+    ['data-type-select', 'measure-select', 'model-select', 'tau2-select', 'ci-level'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('change', () => {
+          if (autoSaveInitialized) triggerAutoSave();
+        });
+      }
+    });
+
+    // Auto-save on study data changes (debounced via Storage)
+    // We use a MutationObserver on data-related containers as fallback
+    const observer = new MutationObserver(() => {
+      if (autoSaveInitialized) triggerAutoSave();
+    });
+
+    ['data-table-container', 'effect-overview', 'manual-input-area'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el, { childList: true, subtree: true });
+    });
+
+    // Try to restore last session on startup
+    restoreLastSession();
+  }
+
+  async function restoreLastSession() {
+    try {
+      const projects = await Storage.listProjects();
+      if (projects.length > 0) {
+        // Show a subtle notification that projects exist
+        const indicator = document.getElementById('autosave-indicator');
+        if (indicator) {
+          indicator.innerHTML = `<span style="color: #3b82f6;">&#128279;</span> ${projects.length} 个已保存项目`;
+        }
+      }
+    } catch (e) {
+      console.warn('Restore check failed:', e);
+    }
+  }
+
+  // ============================================================
+  // Auto-save & Project Management
+  // ============================================================
+
+  let autoSaveInitialized = false;
+
+  function triggerAutoSave() {
+    if (!autoSaveInitialized) return;
+    Storage.autoSave(state, state.projectName || '未命名项目');
+  }
+
+  function onAutoSaved(e) {
+    state.autoSaveStatus = 'saved';
+    updateAutoSaveIndicator(e.detail.name, e.detail.time);
+  }
+
+  function updateAutoSaveIndicator(name, time) {
+    const indicator = document.getElementById('autosave-indicator');
+    if (indicator) {
+      const timeStr = Storage.formatDate(time).split(' ')[1] || '';
+      indicator.innerHTML = `<span style="color: #10b981;">&#10003;</span> 已保存 ${timeStr}`;
+      indicator.style.opacity = '1';
+    }
+  }
+
+  // Load a saved project into the app
+  function loadProject(project) {
+    Storage.disableAutoSave();
+
+    state.projectName = project.name || '';
+    state.dataType = project.dataType || 'binary';
+    state.measure = project.measure || 'OR';
+    state.model = project.model || 'random';
+    state.tau2Method = project.tau2Method || 'DL';
+    state.ciLevel = project.ciLevel || 0.95;
+    state.subgroupVar = project.subgroupVar || null;
+    state.metaRegVar = project.metaRegVar || null;
+    state.studies = (project.studies || []).map(s => ({ ...s }));
+
+    Storage.setAutoSaveProject(project.id);
+
+    // Update UI controls
+    const typeSelect = document.getElementById('data-type-select');
+    const measureSelect = document.getElementById('measure-select');
+    const modelSelect = document.getElementById('model-select');
+    const tau2Select = document.getElementById('tau2-select');
+    const ciLevel = document.getElementById('ci-level');
+    const nameInput = document.getElementById('project-name-input');
+
+    if (typeSelect) {
+      typeSelect.value = state.dataType;
+      typeSelect.dispatchEvent(new Event('change'));
+    }
+    if (measureSelect) measureSelect.value = state.measure;
+    if (modelSelect) modelSelect.value = state.model;
+    if (tau2Select) tau2Select.value = state.tau2Method;
+    if (ciLevel) ciLevel.value = String(state.ciLevel);
+    if (nameInput) nameInput.value = state.projectName;
+
+    Storage.enableAutoSave();
+    autoSaveInitialized = true;
+    triggerAutoSave();
+
+    // Navigate to data view
+    navigateTo('data-view');
+  }
+
+  // Render project manager page
+  async function renderProjectManager() {
+    const container = document.getElementById('project-manager-content');
+    if (!container) return;
+
+    container.innerHTML = '<div class="alert alert-info">加载中...</div>';
+
+    try {
+      const projects = await Storage.listProjects();
+
+      let html = `
+        <div class="card">
+          <div class="card-header">
+            <h3>项目操作</h3>
+          </div>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; padding: 16px;">
+            <button class="btn btn-primary" id="new-project-btn">&#128221; 新建项目</button>
+            <button class="btn btn-outline" id="export-project-btn">&#128190; 导出当前项目</button>
+            <button class="btn btn-outline" id="import-project-btn">&#128229; 导入项目</button>
+            <input type="file" id="import-file-input" accept=".json" style="display:none;">
+          </div>
+        </div>
+      `;
+
+      if (projects.length === 0) {
+        html += `
+          <div class="card">
+            <div style="padding: 40px; text-align: center; color: #888;">
+              <div style="font-size: 48px; margin-bottom: 12px;">&#128218;</div>
+              <h3>暂无保存的项目</h3>
+              <p style="margin-top: 8px;">在数据输入页面录入数据后会自动保存，<br>或点击上方"导入项目"从 JSON 文件恢复。</p>
+            </div>
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="card">
+            <div class="card-header">
+              <h3>已保存的项目 (${projects.length})</h3>
+            </div>
+            <div class="project-list" style="padding: 8px;">
+        `;
+
+        for (const p of projects) {
+          const studyCount = (p.studies || []).length;
+          const typeLabel = getTypeLabel(p.dataType);
+          const isCurrent = Storage.getAutoSaveProjectId() === p.id;
+          html += `
+            <div class="project-card ${isCurrent ? 'project-card-active' : ''}" data-id="${p.id}">
+              <div class="project-card-info">
+                <div class="project-card-name">
+                  ${escapeHtml(p.name || '未命名项目')}
+                  ${isCurrent ? '<span class="badge badge-green" style="margin-left:8px;">当前</span>' : ''}
+                </div>
+                <div class="project-card-meta">
+                  <span>${typeLabel}</span>
+                  <span>&middot;</span>
+                  <span>${studyCount} 个研究</span>
+                  <span>&middot;</span>
+                  <span>更新于 ${Storage.formatDate(p.updatedAt)}</span>
+                </div>
+              </div>
+              <div class="project-card-actions">
+                <button class="btn btn-primary btn-sm" data-action="load" data-id="${p.id}">加载</button>
+                <button class="btn btn-outline btn-sm" data-action="export" data-id="${p.id}">导出</button>
+                <button class="btn btn-danger btn-sm" data-action="delete" data-id="${p.id}">删除</button>
+              </div>
+            </div>
+          `;
+        }
+
+        html += '</div></div>';
+      }
+
+      container.innerHTML = html;
+
+      // Bind events
+      document.getElementById('new-project-btn')?.addEventListener('click', () => {
+        if (state.studies.length > 0 && !confirm('当前有未保存的数据，确定要新建项目吗？')) return;
+        Storage.disableAutoSave();
+        state.studies = [];
+        state.projectName = '';
+        Storage.setAutoSaveProject(null);
+        Storage.enableAutoSave();
+        const nameInput = document.getElementById('project-name-input');
+        if (nameInput) nameInput.value = '';
+        navigateTo('data-input');
+      });
+
+      document.getElementById('export-project-btn')?.addEventListener('click', () => {
+        if (state.studies.length === 0) {
+          alert('当前没有数据可导出，请先录入数据。');
+          return;
+        }
+        const filename = Storage.exportProject(state, state.projectName || '未命名项目');
+        alert('项目已导出：' + filename);
+      });
+
+      const importBtn = document.getElementById('import-project-btn');
+      const importInput = document.getElementById('import-file-input');
+      importBtn?.addEventListener('click', () => importInput?.click());
+      importInput?.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+          const project = await Storage.importFromFile(file);
+          await Storage.saveProject(project);
+          loadProject(project);
+          alert('项目导入成功：' + project.name);
+        } catch (err) {
+          alert('导入失败：' + err.message);
+        }
+        importInput.value = '';
+      });
+
+      // Project card actions
+      container.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const action = btn.dataset.action;
+          const id = btn.dataset.id;
+          const project = await Storage.getProject(id);
+          if (!project) return;
+
+          if (action === 'load') {
+            loadProject(project);
+          } else if (action === 'export') {
+            const filename = Storage.exportProject(project, project.name);
+            alert('项目已导出：' + filename);
+          } else if (action === 'delete') {
+            if (confirm(`确定要删除项目"${project.name}"吗？此操作不可撤销。`)) {
+              await Storage.deleteProject(id);
+              if (Storage.getAutoSaveProjectId() === id) {
+                Storage.setAutoSaveProject(null);
+              }
+              renderProjectManager();
+            }
+          }
+        });
+      });
+    } catch (err) {
+      container.innerHTML = '<div class="alert alert-danger">加载项目列表失败：' + err.message + '</div>';
+    }
+  }
+
+  function getTypeLabel(dataType) {
+    const labels = {
+      binary: '二分类 (OR/RR/RD)',
+      continuous: '连续型 (MD/SMD)',
+      generic: '直接效应量',
+      correlation: '相关系数',
+      proportion: '比例',
+      hazard: '风险比 HR',
+      diagnostic: '诊断试验'
+    };
+    return labels[dataType] || dataType;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ============================================================
   // Init
   // ============================================================
 
   function init() {
     initNavigation();
     initDataInput();
+    initProjectManagement();
   }
 
   return {

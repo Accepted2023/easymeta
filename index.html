@@ -28,6 +28,9 @@
       <div class="nav-item" data-page="data-view">
         <span class="icon">&#128203;</span> <span>数据查看</span>
       </div>
+      <div class="nav-item" data-page="project-manager">
+        <span class="icon">&#128279;</span> <span>项目管理</span>
+      </div>
     </div>
 
     <div class="nav-section">
@@ -67,7 +70,8 @@
     </div>
 
     <div class="sidebar-footer">
-      <p>EasyMeta v1.0</p>
+      <div id="autosave-indicator" style="font-size: 11px; color: #888; margin-bottom: 4px; opacity: 0.7; transition: opacity 0.3s;"></div>
+      <p>EasyMeta v1.1</p>
       <p>Powered by pure JavaScript</p>
     </div>
   </nav>
@@ -80,6 +84,18 @@
         <div>
           <h2>数据输入</h2>
           <div class="subtitle">选择数据输入方式，开始你的 Meta 分析</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>项目信息</h3>
+          <span id="autosave-badge" style="font-size: 12px; color: #10b981;"></span>
+        </div>
+        <div class="form-group">
+          <label>项目名称</label>
+          <input type="text" class="form-control" id="project-name-input" placeholder="给你的分析起个名字..." style="max-width: 500px;">
+          <div class="hint">数据会自动保存到浏览器本地，刷新页面不会丢失</div>
         </div>
       </div>
 
@@ -283,6 +299,17 @@
       <div id="diagnostic-content"></div>
     </div>
 
+    <!-- Project Manager Page -->
+    <div class="page hidden" id="page-project-manager">
+      <div class="page-header">
+        <div>
+          <h2>项目管理</h2>
+          <div class="subtitle">本地保存的项目 &middot; 导入 / 导出 / 加载</div>
+        </div>
+      </div>
+      <div id="project-manager-content"></div>
+    </div>
+
     <!-- Report Page -->
     <div class="page hidden" id="page-report">
       <div class="page-header">
@@ -302,6 +329,7 @@
 
 <script src="js/stats.js"></script>
 <script src="js/plots.js"></script>
+<script src="js/storage.js"></script>
 <script src="js/app.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
