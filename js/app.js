@@ -696,8 +696,8 @@ const App = (function () {
 
     // Run meta-analysis
     const result = state.model === 'random'
-      ? Stats.randomEffect(studies, state.tau2Method)
-      : Stats.fixedEffect(studies);
+      ? Stats.randomEffect(studies, state.tau2Method, state.ciLevel)
+      : Stats.fixedEffect(studies, state.ciLevel);
 
     if (!result) {
       container.innerHTML = '<div class="alert alert-danger">分析失败，请检查数据。</div>';
@@ -716,7 +716,7 @@ const App = (function () {
     html += `<div class="stat-card">
       <div class="label">合并效应量</div>
       <div class="value">${tr.estimate.toFixed(3)}</div>
-      <div class="sub">95% CI: [${tr.lower.toFixed(3)}, ${tr.upper.toFixed(3)}]</div>
+      <div class="sub">${(state.ciLevel*100).toFixed(0)}% CI: [${tr.lower.toFixed(3)}, ${tr.upper.toFixed(3)}]</div>
     </div>`;
     html += `<div class="stat-card ${result.p < 0.05 ? 'danger' : 'success'}">
       <div class="label">Z 检验</div>
@@ -752,7 +752,7 @@ const App = (function () {
       html += `<strong>指数化合并效应:</strong> ${tr.estimate.toFixed(4)} [${tr.lower.toFixed(4)}, ${tr.upper.toFixed(4)}]<br>`;
     } else {
       html += `<strong>合并效应:</strong> ${result.TE.toFixed(4)} (SE ${result.seTE.toFixed(4)})<br>`;
-      html += `<strong>95% CI:</strong> [${result.lower.toFixed(4)}, ${result.upper.toFixed(4)}]<br>`;
+      html += `<strong>${(state.ciLevel*100).toFixed(0)}% CI:</strong> [${result.lower.toFixed(4)}, ${result.upper.toFixed(4)}]<br>`;
     }
     html += `<strong>Z 统计量:</strong> ${result.z.toFixed(4)}, p = ${Stats.formatP(result.p)}<br>`;
     html += `<strong>Cochran's Q:</strong> ${result.Q.toFixed(4)} (df = ${result.df}), p = ${Stats.formatP(result.Q_p)}<br>`;
@@ -872,7 +872,7 @@ const App = (function () {
 
     // Subgroup table
     html += '<div class="table-wrapper"><table class="data-table"><thead><tr>';
-    html += '<th>亚组</th><th>k</th><th>合并效应量</th><th>95% CI</th><th>Z</th><th>p</th><th>I&sup2;</th>';
+    html += `<th>亚组</th><th>k</th><th>合并效应量</th><th>${(state.ciLevel*100).toFixed(0)}% CI</th><th>Z</th><th>p</th><th>I&sup2;</th>`;
     if (state.model === 'random') html += '<th>&tau;&sup2;</th>';
     html += '</tr></thead><tbody>';
 
@@ -1052,8 +1052,8 @@ const App = (function () {
 
     const studies = computeEffectSizes();
     const result = state.model === 'random'
-      ? Stats.randomEffect(studies, state.tau2Method)
-      : Stats.fixedEffect(studies);
+      ? Stats.randomEffect(studies, state.tau2Method, state.ciLevel)
+      : Stats.fixedEffect(studies, state.ciLevel);
 
     if (!result) {
       container.innerHTML = '<div class="alert alert-danger">分析失败。</div>';
@@ -1139,8 +1139,8 @@ const App = (function () {
 
     const studies = computeEffectSizes();
     const result = state.model === 'random'
-      ? Stats.randomEffect(studies, state.tau2Method)
-      : Stats.fixedEffect(studies);
+      ? Stats.randomEffect(studies, state.tau2Method, state.ciLevel)
+      : Stats.fixedEffect(studies, state.ciLevel);
 
     if (!result) {
       container.innerHTML = '<div class="alert alert-danger">分析失败。</div>';
@@ -1282,8 +1282,8 @@ const App = (function () {
 
     const studies = computeEffectSizes();
     const result = state.model === 'random'
-      ? Stats.randomEffect(studies, state.tau2Method)
-      : Stats.fixedEffect(studies);
+      ? Stats.randomEffect(studies, state.tau2Method, state.ciLevel)
+      : Stats.fixedEffect(studies, state.ciLevel);
 
     if (!result) {
       container.innerHTML = '<div class="alert alert-danger">分析失败。</div>';
@@ -1303,7 +1303,7 @@ const App = (function () {
 
       // Table
       html += '<div class="table-wrapper"><table class="data-table"><thead><tr>';
-      html += '<th>排除的研究</th><th>合并效应量</th><th>95% CI</th><th>p</th><th>I&sup2;</th>';
+      html += `<th>排除的研究</th><th>合并效应量</th><th>${(state.ciLevel*100).toFixed(0)}% CI</th><th>p</th><th>I&sup2;</th>`;
       if (state.model === 'random') html += '<th>&tau;&sup2;</th>';
       html += '</tr></thead><tbody>';
 
@@ -1386,7 +1386,7 @@ const App = (function () {
       html += `<div class="stat-card success">
         <div class="label">合并敏感度 (Se)</div>
         <div class="value">${(diag.pooledSe * 100).toFixed(1)}%</div>
-        <div class="sub">95% CI: [${(diag.seCI.lower * 100).toFixed(1)}%, ${(diag.seCI.upper * 100).toFixed(1)}%]</div>
+        <div class="sub">${(state.ciLevel*100).toFixed(0)}% CI: [${(diag.seCI.lower * 100).toFixed(1)}%, ${(diag.seCI.upper * 100).toFixed(1)}%]</div>
       </div>`;
     }
 
@@ -1395,7 +1395,7 @@ const App = (function () {
       html += `<div class="stat-card success">
         <div class="label">合并特异度 (Sp)</div>
         <div class="value">${(diag.pooledSp * 100).toFixed(1)}%</div>
-        <div class="sub">95% CI: [${(diag.spCI.lower * 100).toFixed(1)}%, ${(diag.spCI.upper * 100).toFixed(1)}%]</div>
+        <div class="sub">${(state.ciLevel*100).toFixed(0)}% CI: [${(diag.spCI.lower * 100).toFixed(1)}%, ${(diag.spCI.upper * 100).toFixed(1)}%]</div>
       </div>`;
     }
 
@@ -1404,7 +1404,7 @@ const App = (function () {
       html += `<div class="stat-card ${diag.dorResult.p < 0.05 ? 'danger' : ''}">
         <div class="label">合并诊断比值比 (DOR)</div>
         <div class="value">${diag.pooledDOR.toFixed(1)}</div>
-        <div class="sub">95% CI: [${diag.dorCI.lower.toFixed(1)}, ${diag.dorCI.upper.toFixed(1)}]</div>
+        <div class="sub">${(state.ciLevel*100).toFixed(0)}% CI: [${diag.dorCI.lower.toFixed(1)}, ${diag.dorCI.upper.toFixed(1)}]</div>
       </div>`;
     }
 
@@ -1413,7 +1413,7 @@ const App = (function () {
       html += `<div class="stat-card warning">
         <div class="label">合并阳性似然比 (PLR+)</div>
         <div class="value">${diag.pooledPLR.toFixed(2)}</div>
-        <div class="sub">95% CI: [${diag.plrCI.lower.toFixed(2)}, ${diag.plrCI.upper.toFixed(2)}]</div>
+        <div class="sub">${(state.ciLevel*100).toFixed(0)}% CI: [${diag.plrCI.lower.toFixed(2)}, ${diag.plrCI.upper.toFixed(2)}]</div>
       </div>`;
     }
 
@@ -1422,7 +1422,7 @@ const App = (function () {
       html += `<div class="stat-card warning">
         <div class="label">合并阴性似然比 (NLR-)</div>
         <div class="value">${diag.pooledNLR.toFixed(3)}</div>
-        <div class="sub">95% CI: [${diag.nlrCI.lower.toFixed(3)}, ${diag.nlrCI.upper.toFixed(3)}]</div>
+        <div class="sub">${(state.ciLevel*100).toFixed(0)}% CI: [${diag.nlrCI.lower.toFixed(3)}, ${diag.nlrCI.upper.toFixed(3)}]</div>
       </div>`;
     }
 
@@ -1542,7 +1542,7 @@ const App = (function () {
     // ---- Pooled Measures Detail ----
     html += '<div class="card"><div class="card-header"><h3>合并诊断指标汇总</h3></div>';
     html += '<div class="table-wrapper"><table class="data-table"><thead><tr>';
-    html += '<th>指标</th><th>合并值</th><th>95% CI</th><th>Z</th><th>p</th><th>异质性 I&sup2;</th>';
+    html += `<th>指标</th><th>合并值</th><th>${(state.ciLevel*100).toFixed(0)}% CI</th><th>Z</th><th>p</th><th>异质性 I&sup2;</th>`;
     html += '</tr></thead><tbody>';
 
     if (diag.dorResult) {
@@ -1709,8 +1709,8 @@ const App = (function () {
 
     const studies = computeEffectSizes();
     const result = state.model === 'random'
-      ? Stats.randomEffect(studies, state.tau2Method)
-      : Stats.fixedEffect(studies);
+      ? Stats.randomEffect(studies, state.tau2Method, state.ciLevel)
+      : Stats.fixedEffect(studies, state.ciLevel);
 
     if (!result) {
       container.innerHTML = '<div class="alert alert-danger">分析失败。</div>';
@@ -1752,7 +1752,7 @@ const App = (function () {
     html += `<div class="stat-card">
       <div class="label">合并效应量</div>
       <div class="value">${tr.estimate.toFixed(3)}</div>
-      <div class="sub">95% CI: [${tr.lower.toFixed(3)}, ${tr.upper.toFixed(3)}]</div>
+      <div class="sub">${(state.ciLevel*100).toFixed(0)}% CI: [${tr.lower.toFixed(3)}, ${tr.upper.toFixed(3)}]</div>
     </div>`;
     html += `<div class="stat-card ${result.p < 0.05 ? 'danger' : 'success'}">
       <div class="label">Z 检验 p 值</div>
@@ -1837,19 +1837,19 @@ const App = (function () {
         html += '<div class="card-header" style="margin-top: 20px;"><h3>7. 诊断试验 Meta 分析</h3></div>';
         html += '<div class="result-grid">';
         if (diagReport.pooledSe !== null) {
-          html += `<div class="stat-card success"><div class="label">合并敏感度</div><div class="value">${(diagReport.pooledSe * 100).toFixed(1)}%</div><div class="sub">95% CI: [${(diagReport.seCI.lower * 100).toFixed(1)}%, ${(diagReport.seCI.upper * 100).toFixed(1)}%]</div></div>`;
+          html += `<div class="stat-card success"><div class="label">合并敏感度</div><div class="value">${(diagReport.pooledSe * 100).toFixed(1)}%</div><div class="sub">${(state.ciLevel*100).toFixed(0)}% CI: [${(diagReport.seCI.lower * 100).toFixed(1)}%, ${(diagReport.seCI.upper * 100).toFixed(1)}%]</div></div>`;
         }
         if (diagReport.pooledSp !== null) {
-          html += `<div class="stat-card success"><div class="label">合并特异度</div><div class="value">${(diagReport.pooledSp * 100).toFixed(1)}%</div><div class="sub">95% CI: [${(diagReport.spCI.lower * 100).toFixed(1)}%, ${(diagReport.spCI.upper * 100).toFixed(1)}%]</div></div>`;
+          html += `<div class="stat-card success"><div class="label">合并特异度</div><div class="value">${(diagReport.pooledSp * 100).toFixed(1)}%</div><div class="sub">${(state.ciLevel*100).toFixed(0)}% CI: [${(diagReport.spCI.lower * 100).toFixed(1)}%, ${(diagReport.spCI.upper * 100).toFixed(1)}%]</div></div>`;
         }
         if (diagReport.pooledDOR !== null) {
-          html += `<div class="stat-card"><div class="label">合并 DOR</div><div class="value">${diagReport.pooledDOR.toFixed(1)}</div><div class="sub">95% CI: [${diagReport.dorCI.lower.toFixed(1)}, ${diagReport.dorCI.upper.toFixed(1)}]</div></div>`;
+          html += `<div class="stat-card"><div class="label">合并 DOR</div><div class="value">${diagReport.pooledDOR.toFixed(1)}</div><div class="sub">${(state.ciLevel*100).toFixed(0)}% CI: [${diagReport.dorCI.lower.toFixed(1)}, ${diagReport.dorCI.upper.toFixed(1)}]</div></div>`;
         }
         if (diagReport.pooledPLR !== null) {
-          html += `<div class="stat-card warning"><div class="label">合并 PLR+</div><div class="value">${diagReport.pooledPLR.toFixed(2)}</div><div class="sub">95% CI: [${diagReport.plrCI.lower.toFixed(2)}, ${diagReport.plrCI.upper.toFixed(2)}]</div></div>`;
+          html += `<div class="stat-card warning"><div class="label">合并 PLR+</div><div class="value">${diagReport.pooledPLR.toFixed(2)}</div><div class="sub">${(state.ciLevel*100).toFixed(0)}% CI: [${diagReport.plrCI.lower.toFixed(2)}, ${diagReport.plrCI.upper.toFixed(2)}]</div></div>`;
         }
         if (diagReport.pooledNLR !== null) {
-          html += `<div class="stat-card warning"><div class="label">合并 NLR-</div><div class="value">${diagReport.pooledNLR.toFixed(3)}</div><div class="sub">95% CI: [${diagReport.nlrCI.lower.toFixed(3)}, ${diagReport.nlrCI.upper.toFixed(3)}]</div></div>`;
+          html += `<div class="stat-card warning"><div class="label">合并 NLR-</div><div class="value">${diagReport.pooledNLR.toFixed(3)}</div><div class="sub">${(state.ciLevel*100).toFixed(0)}% CI: [${diagReport.nlrCI.lower.toFixed(3)}, ${diagReport.nlrCI.upper.toFixed(3)}]</div></div>`;
         }
         if (diagReport.sroc) {
           html += `<div class="stat-card purple"><div class="label">SROC AUC</div><div class="value">${diagReport.sroc.auc.toFixed(3)}</div><div class="sub">Q* = ${diagReport.sroc.qStar.toFixed(3)}</div></div>`;
