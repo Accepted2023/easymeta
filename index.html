@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="MetaLab - 功能全面的 Meta 分析工具，支持二分类/连续型/诊断试验等多种数据类型">
+  <meta name="theme-color" content="#534AB7">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>MetaLab - Meta分析软件</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" type="image/png" href="icon-192.png">
+</head>
+<body>
+<div class="app-container">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <h1><span class="logo">&#128202;</span> <span>MetaLab</span></h1>
+      <p>Meta-Analysis Toolkit v1.0</p>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">数据管理</div>
+      <div class="nav-item active" data-page="data-input">
+        <span class="icon">&#128193;</span> <span>数据输入</span>
+      </div>
+      <div class="nav-item" data-page="data-view">
+        <span class="icon">&#128203;</span> <span>数据查看</span>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">分析</div>
+      <div class="nav-item" data-page="main-analysis">
+        <span class="icon">&#128202;</span> <span>主分析</span>
+      </div>
+      <div class="nav-item" data-page="subgroup">
+        <span class="icon">&#128193;</span> <span>亚组分析</span>
+      </div>
+      <div class="nav-item" data-page="meta-regression">
+        <span class="icon">&#128200;</span> <span>Meta回归</span>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">诊断与检验</div>
+      <div class="nav-item" data-page="heterogeneity">
+        <span class="icon">&#9881;</span> <span>异质性</span>
+      </div>
+      <div class="nav-item" data-page="pub-bias">
+        <span class="icon">&#128269;</span> <span>发表偏倚</span>
+      </div>
+      <div class="nav-item" data-page="sensitivity">
+        <span class="icon">&#128260;</span> <span>敏感性分析</span>
+      </div>
+      <div class="nav-item" data-page="diagnostic">
+        <span class="icon">&#129514;</span> <span>诊断试验分析</span>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">报告</div>
+      <div class="nav-item" data-page="report">
+        <span class="icon">&#128196;</span> <span>分析报告</span>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <p>MetaLab v1.0</p>
+      <p>Powered by pure JavaScript</p>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <!-- Data Input Page -->
+    <div class="page" id="page-data-input">
+      <div class="page-header">
+        <div>
+          <h2>数据输入</h2>
+          <div class="subtitle">选择数据输入方式，开始你的 Meta 分析</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>选择数据类型</h3>
+        </div>
+        <div class="form-group">
+          <label>效应量类型</label>
+          <select class="form-control" id="data-type-select" style="max-width: 400px;">
+            <option value="binary">二分类数据 (2x2 表)</option>
+            <option value="continuous">连续型数据 (均值/标准差)</option>
+            <option value="generic">直接效应量 (TE, SE)</option>
+            <option value="correlation">相关系数 (Fisher's z)</option>
+            <option value="proportion">单组比例 (logit)</option>
+            <option value="hazard">风险比 HR (对数)</option>
+            <option value="diagnostic">诊断试验数据 (2x2 表)</option>
+          </select>
+          <div class="hint" id="data-type-hint">输入各组的事件数和总数，计算 OR/RR/RD</div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>效应量指标</label>
+            <select class="form-control" id="measure-select" style="max-width: 200px;">
+              <option value="OR">Odds Ratio (OR)</option>
+              <option value="RR">Risk Ratio (RR)</option>
+              <option value="RD">Risk Difference (RD)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>分析模型</label>
+            <select class="form-control" id="model-select" style="max-width: 200px;">
+              <option value="random">随机效应模型 (Random)</option>
+              <option value="fixed">固定效应模型 (Fixed)</option>
+            </select>
+          </div>
+          <div class="form-group" id="tau2-method-group">
+            <label>&tau;&sup2; 估计方法</label>
+            <select class="form-control" id="tau2-select" style="max-width: 200px;">
+              <option value="DL">DerSimonian-Laird (DL)</option>
+              <option value="REML">REML</option>
+              <option value="HE">Hedges (HE)</option>
+              <option value="SJ">Sidik-Jonkman (SJ)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>置信水平</label>
+            <select class="form-control" id="ci-level" style="max-width: 120px;">
+              <option value="0.95">95%</option>
+              <option value="0.90">90%</option>
+              <option value="0.99">99%</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>输入方式</h3>
+        </div>
+        <div class="tabs" id="input-tabs">
+          <div class="tab active" data-tab="example">示例数据</div>
+          <div class="tab" data-tab="csv">CSV 导入</div>
+          <div class="tab" data-tab="manual">手动录入</div>
+        </div>
+
+        <!-- Example datasets -->
+        <div class="tab-content active" id="tab-example">
+          <div class="example-list" id="example-list"></div>
+        </div>
+
+        <!-- CSV import -->
+        <div class="tab-content" id="tab-csv">
+          <div class="file-upload" id="file-upload-area">
+            <div class="upload-icon">&#128229;</div>
+            <div class="upload-text">点击或拖拽 CSV 文件到此处</div>
+            <div class="upload-hint">支持 CSV / TSV 格式，首行为列名</div>
+            <input type="file" id="csv-file-input" accept=".csv,.tsv,.txt" style="display:none;">
+          </div>
+          <div style="margin-top: 16px;">
+            <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">或粘贴 CSV 数据</label>
+            <textarea class="form-control" id="csv-textarea" placeholder="study,events_t,total_t,events_c,total_c&#10;Study A,12,50,8,50&#10;Study B,20,100,15,100"></textarea>
+            <div style="margin-top: 8px;">
+              <button class="btn btn-primary" id="parse-csv-btn">解析 CSV</button>
+            </div>
+          </div>
+          <div id="csv-preview" style="margin-top: 16px;"></div>
+        </div>
+
+        <!-- Manual entry -->
+        <div class="tab-content" id="tab-manual">
+          <div id="manual-input-area"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data View Page -->
+    <div class="page hidden" id="page-data-view">
+      <div class="page-header">
+        <div>
+          <h2>数据查看</h2>
+          <div class="subtitle">查看和编辑已录入的研究数据</div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-outline btn-sm" id="add-study-btn">+ 添加研究</button>
+          <button class="btn btn-danger btn-sm" id="clear-data-btn">清空数据</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>研究数据表</h3>
+          <span class="badge badge-blue" id="study-count-badge">0 studies</span>
+        </div>
+        <div id="data-table-container"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>效应量概览</h3>
+        </div>
+        <div id="effect-overview"></div>
+      </div>
+    </div>
+
+    <!-- Main Analysis Page -->
+    <div class="page hidden" id="page-main-analysis">
+      <div class="page-header">
+        <div>
+          <h2>主分析</h2>
+          <div class="subtitle">合并效应量与森林图</div>
+        </div>
+      </div>
+
+      <div id="main-analysis-content">
+        <div class="alert alert-info">请在"数据输入"页面先录入数据，然后回到这里查看分析结果。</div>
+      </div>
+    </div>
+
+    <!-- Subgroup Analysis Page -->
+    <div class="page hidden" id="page-subgroup">
+      <div class="page-header">
+        <div>
+          <h2>亚组分析</h2>
+          <div class="subtitle">按亚组变量进行分组分析，检验组间差异</div>
+        </div>
+      </div>
+      <div id="subgroup-content"></div>
+    </div>
+
+    <!-- Meta-Regression Page -->
+    <div class="page hidden" id="page-meta-regression">
+      <div class="page-header">
+        <div>
+          <h2>Meta 回归</h2>
+          <div class="subtitle">探索连续型协变量对效应量的影响</div>
+        </div>
+      </div>
+      <div id="meta-regression-content"></div>
+    </div>
+
+    <!-- Heterogeneity Page -->
+    <div class="page hidden" id="page-heterogeneity">
+      <div class="page-header">
+        <div>
+          <h2>异质性分析</h2>
+          <div class="subtitle">Cochran's Q, I&sup2;, &tau;&sup2; 及诊断图</div>
+        </div>
+      </div>
+      <div id="heterogeneity-content"></div>
+    </div>
+
+    <!-- Publication Bias Page -->
+    <div class="page hidden" id="page-pub-bias">
+      <div class="page-header">
+        <div>
+          <h2>发表偏倚检验</h2>
+          <div class="subtitle">漏斗图、Egger 检验、Begg 检验、Trim and Fill</div>
+        </div>
+      </div>
+      <div id="pub-bias-content"></div>
+    </div>
+
+    <!-- Sensitivity Analysis Page -->
+    <div class="page hidden" id="page-sensitivity">
+      <div class="page-header">
+        <div>
+          <h2>敏感性分析</h2>
+          <div class="subtitle">留一法 (Leave-one-out) 与累积 Meta 分析</div>
+        </div>
+      </div>
+      <div id="sensitivity-content"></div>
+    </div>
+
+    <!-- Diagnostic Test Meta-Analysis Page -->
+    <div class="page hidden" id="page-diagnostic">
+      <div class="page-header">
+        <div>
+          <h2>诊断试验 Meta 分析</h2>
+          <div class="subtitle">Se/Sp/PLR/NLR/DOR 汇总 &middot; SROC 曲线 &middot; Moses-Littenberg 模型</div>
+        </div>
+      </div>
+      <div id="diagnostic-content"></div>
+    </div>
+
+    <!-- Report Page -->
+    <div class="page hidden" id="page-report">
+      <div class="page-header">
+        <div>
+          <h2>分析报告</h2>
+          <div class="subtitle">完整 Meta 分析结果汇总</div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-outline" id="export-html-btn">&#128190; 导出 HTML</button>
+          <button class="btn btn-primary" onclick="window.print()">&#128424; 打印</button>
+        </div>
+      </div>
+      <div id="report-content"></div>
+    </div>
+  </div>
+</div>
+
+<script src="js/stats.js"></script>
+<script src="js/plots.js"></script>
+<script src="js/app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('sw.js').catch(function(err) {
+      console.warn('SW registration failed:', err);
+    });
+  });
+}
+</script>
+</body>
+</html>
